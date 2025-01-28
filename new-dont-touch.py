@@ -7,13 +7,11 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from bs4 import BeautifulSoup
 from time import sleep
-import chromedriver_binary
 from webdriver_manager.chrome import ChromeDriverManager
-import time
-import csv
 import datetime
 import pandas as pd
 import os
+import platform
 
 # Selenium options
 op = Options()
@@ -26,17 +24,41 @@ op.add_argument("--start-maximized")  # Open Chrome maximized
 # op.add_argument("--headless")  # Uncomment if running on a server (no GUI)
 op.add_argument("--no-sandbox")
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+
+linux_chrome_driver_path = os.path.join(BASE_DIR, "chrome/linux/chromedriver")
+linux_chrome_binary_path = os.path.join(BASE_DIR, "chrome/linux/chrome-binary/chrome")
+
+mac_chrome_driver_path = os.path.join(BASE_DIR, "chrome/mac-x64/chromedriver")
+mac_chrome_binary_path = os.path.join(
+    BASE_DIR,
+    "chrome/mac-x64/chrome-binary/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
+)
+
+
+system = platform.system()
+
+if system == "Linux":
+    DRIVER_PATH = linux_chrome_driver_path
+    BINARY_PATH = linux_chrome_binary_path
+
+elif system == "Darwin":  # macOS
+    DRIVER_PATH = mac_chrome_driver_path
+    BINARY_PATH = mac_chrome_binary_path
+else:
+    raise ValueError(f"Unsupported operating system: {system}")
+
+
 # Set the path to the Chrome binary
-op.binary_location = "/home/siddharthakhanal/Downloads/serp/chrome/chrome-binary/chrome"
+op.binary_location = BINARY_PATH
 
 # ChromeDriver auto-update
 try:
     service = Service(executable_path=ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=op)
-
 except Exception as e:
-    print(f"Error initializing ChromeDriver: {e}")
-    driver_path = "/home/siddharthakhanal/Downloads/serp/chrome/chromedriver"
+    driver_path = DRIVER_PATH
     service = Service(executable_path=driver_path)
     driver = webdriver.Chrome(service=service, options=op)
 
@@ -102,7 +124,6 @@ try:
                     D_TITLE = soup.select(SET_TITLE)[i].string
                     addrow = [SET_KWD, D_num, D_TITLE, D_URL]
                     df.loc[n] = addrow
-                    print(df)
                     n += 1
                 except Exception as e:
                     print(f"Error processing result {i+1} for '{SET_KWD}': {e}")

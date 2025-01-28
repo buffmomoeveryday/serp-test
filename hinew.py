@@ -7,22 +7,11 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 from bs4 import BeautifulSoup
 from time import sleep
-import chromedriver_binary
 from webdriver_manager.chrome import ChromeDriverManager
-import time
-import csv
 import datetime
 import pandas as pd
 import os
 import platform
-from download import PlatformInfo, Downloader, ChromeSetup, create_selenium_driver
-
-platform_info = PlatformInfo()
-chrome_setup = ChromeSetup(platform_info.platform_key)
-
-# Set up Chrome and ChromeDriver if necessary
-chrome_setup.setup_chrome()
-chrome_setup.setup_chromedriver()
 
 # Selenium options
 op = Options()
@@ -31,42 +20,66 @@ op.add_argument("--disable-extensions")
 op.add_argument("--disable-dev-shm-usage")
 op.add_argument("--proxy-server='direct://'")
 op.add_argument("--proxy-bypass-list=*")
-op.add_argument("--start-maximized")
+op.add_argument("--start-maximized")  # Open Chrome maximized
 # op.add_argument("--headless")  # Uncomment if running on a server (no GUI)
 op.add_argument("--no-sandbox")
 
-# Add a unique user data directory to avoid conflicts
-# user_data_dir = "./chrome_user_data"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# os.makedirs(user_data_dir, exist_ok=True)
-# op.add_argument(f"--user-data-dir={user_data_dir}")
 
-op.binary_location = chrome_setup.paths[platform_info.platform_key]["chrome"]
+linux_chrome_driver_path = os.path.join(BASE_DIR, "chrome/linux/chromedriver")
+linux_chrome_binary_path = os.path.join(BASE_DIR, "chrome/linux/chrome-binary/chrome")
 
-print(op.binary_location)
-print(chrome_setup.paths[platform_info.platform_key]["chrome"])
-print(chrome_setup.paths[platform_info.platform_key]["driver"])
-
-driver = create_selenium_driver(
-    chrome_binary_path=chrome_setup.paths[platform_info.platform_key]["chrome"],
-    chromedriver_path=chrome_setup.paths[platform_info.platform_key]["driver"],
-    options=op,
+mac_chrome_driver_path = os.path.join(BASE_DIR, "chrome/mac-x64/chromedriver")
+mac_chrome_binary_path = os.path.join(
+    BASE_DIR,
+    "chrome/mac-x64/chrome-binary/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing",
 )
 
 
+system = platform.system()
+
+if system == "Linux":
+    DRIVER_PATH = linux_chrome_driver_path
+    BINARY_PATH = linux_chrome_binary_path
+
+elif system == "Darwin":  # macOS
+    DRIVER_PATH = mac_chrome_driver_path
+    BINARY_PATH = mac_chrome_binary_path
+else:
+    raise ValueError(f"Unsupported operating system: {system}")
+
+
+# Set the path to the Chrome binary
+op.binary_location = BINARY_PATH
+
+# ChromeDriver auto-update
+try:
+    service = Service(executable_path=ChromeDriverManager().install())
+    driver = webdriver.Chrome(service=service, options=op)
+except Exception as e:
+    driver_path = DRIVER_PATH
+    service = Service(executable_path=driver_path)
+    driver = webdriver.Chrome(service=service, options=op)
+
+# Create DataFrame
 df = pd.DataFrame(columns=["KWD", "順位", "タイトル", "URL"])
 
+# Create output folder if it doesn't exist
 output_folder = "output"
 os.makedirs(output_folder, exist_ok=True)
 
+# CSV file setup
 csv_date = datetime.datetime.today().strftime("%Y%m%d")
 csv_file_name = os.path.join(output_folder, f"serps_{csv_date}.csv")
 
+# Read keyword list from CSV
 df_kwd = pd.read_csv("kwd.csv", encoding="utf-8", header=None)
 kwdlist = df_kwd[0].tolist()
 
 n = 0
 
+# Settings
 SET_URLNUM = 100
 SET_FILTER0 = 3
 
@@ -80,11 +93,11 @@ try:
             SET_URL_PAA = "div.Wt5Tfe > div.yuRUbf > div > span > a"
 
             if SET_FILTER0 == 1:
-                URL = f"https://www.google.com/search?q={SET_KWD}&oq={SET_KWD}&num=100&filter=0"
+                URL = f"https://www.google.com/"
             elif SET_FILTER0 == 2:
-                URL = f"https://www.google.com/search?q={SET_KWD}&oq={SET_KWD}&num=100"
+                URL = f"https://www.google.com/"
             else:
-                URL = f"https://www.google.com/search?q={SET_KWD}&oq={SET_KWD}"
+                URL = f"https://www.google.com/"
 
             driver.get(URL)  # Open the page
 
@@ -107,21 +120,11 @@ try:
             for i in range(SET_URLNUM):
                 try:
                     D_num = i + 1
-                    D_URL_element = soup.select(SET_URL)[i]
-                    D_TITLE_element = soup.select(SET_TITLE)[i]
-
-                    # Check if elements are found
-                    if D_URL_element and D_TITLE_element:
-                        D_URL = D_URL_element.get("href")
-                        D_TITLE = D_TITLE_element.string
-                        addrow = [SET_KWD, D_num, D_TITLE, D_URL]
-                        df.loc[n] = addrow
-                        print(df)
-                        n += 1
-                    else:
-                        print(
-                            f"Skipping result {i+1} for '{SET_KWD}' due to missing elements."
-                        )
+                    D_URL = soup.select(SET_URL)[i].get("href")
+                    D_TITLE = soup.select(SET_TITLE)[i].string
+                    addrow = [SET_KWD, D_num, D_TITLE, D_URL]
+                    df.loc[n] = addrow
+                    n += 1
                 except Exception as e:
                     print(f"Error processing result {i+1} for '{SET_KWD}': {e}")
             sleep(2)
@@ -129,7 +132,5 @@ try:
             print(f"Error processing keyword '{kwd}': {e}")
             continue
 finally:
-    if driver:
-        driver.quit()
-
     df.to_csv(csv_file_name, encoding="utf-8", header=False, index=False)
+    driver.quit()

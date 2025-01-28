@@ -7,9 +7,13 @@ requires-python = ">=3.12"
 dependencies = [
     "beautifulsoup4>=4.12.3",
     "chromedriver-binary>=134.0.6983.0.0",
+    "drissionpage>=4.1.0.17",
     "pandas>=2.2.3",
     "psutil>=6.1.1",
+    "pydub>=0.25.1",
     "pyinstaller>=6.11.1",
+    "pyqt5>=5.15.11",
     "selenium>=4.28.1",
+    "speechrecognition>=3.14.1",
     "webdriver-manager>=4.0.2",
 ]
