@@ -1,0 +1,15 @@
+[project]
+name = "serp"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "beautifulsoup4>=4.12.3",
+    "chromedriver-binary>=134.0.6983.0.0",
+    "pandas>=2.2.3",
+    "psutil>=6.1.1",
+    "pyinstaller>=6.11.1",
+    "selenium>=4.28.1",
+    "webdriver-manager>=4.0.2",
+]
